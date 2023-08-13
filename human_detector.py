@@ -59,7 +59,7 @@ class MaskRCNN:
         self.preprocess = self.weights.transforms()
         self.cls_table = self.weights.meta['categories']
     
-    def __call__(self, x, score_threshold=0.8, mask_threshold=.5):
+    def __call__(self, x, score_threshold=0.8, mask_threshold=.5, human_only=True):
         if not isinstance(x, torch.Tensor):
             x = to_tensor(x)
         assert x.ndim >= 2, 'At least 2-dimensional tensor needed'
@@ -74,6 +74,8 @@ class MaskRCNN:
         # detach from the computation graph
         pred = {k:v.data for k, v in pred.items()}
         valid_idx = pred['scores'] > score_threshold
+        if human_only:
+            valid_idx = valid_idx & (pred['labels'] == 1)
         pred = {key: out[valid_idx] for key, out in pred.items()}
 
         # create colors for each class_name
@@ -121,10 +123,10 @@ class MaskRCNN:
 
         return fig
 
-def run_example(img_file, threshold):
+def run_example(img_file, threshold, human_only):
     img = read_image(img_file)
     maskrcnn = MaskRCNN()
-    pred = maskrcnn(img, threshold)
+    pred = maskrcnn(img, threshold, human_only=human_only)
     return pred
 
 if __name__ == '__main__':
@@ -133,8 +135,9 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--threshold', type=float,
                         default=.8)
     parser.add_argument('-i', '--img', default='./images/demo.jpg')
+    parser.add_argument('--human', type=bool, default=False)
 
     args = parser.parse_args()
 
-    run_example(args.img, args.threshold)
+    run_example(args.img, args.threshold, args.human)
         
